@@ -3,8 +3,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, ShieldCheck, ShieldAlert, AlertTriangle, Loader2, X, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 type ResultType = "safe" | "scam" | "suspicious" | null;
+
+interface JobCheckerProps {
+  userId?: string;
+  onAnalysisComplete?: () => void;
+}
 
 interface AnalysisResult {
   type: ResultType;
@@ -13,76 +20,56 @@ interface AnalysisResult {
   redFlags?: string[];
 }
 
-const JobChecker = () => {
+const JobChecker = ({ userId, onAnalysisComplete }: JobCheckerProps) => {
   const [jobText, setJobText] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const { toast } = useToast();
 
-  // Simulated analysis - In production, this would call the ML backend
+  // Call the AI-powered edge function
   const analyzeJob = async () => {
     if (!jobText.trim()) return;
     
     setIsAnalyzing(true);
     setResult(null);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-job", {
+        body: { jobText, userId },
+      });
 
-    // Mock analysis logic (to be replaced with actual ML model)
-    const lowerText = jobText.toLowerCase();
-    const scamIndicators = [
-      "advance fee", "upfront payment", "wire transfer", "money order",
-      "guaranteed income", "no experience needed", "work from home immediately",
-      "pay for training", "cryptocurrency", "send money", "western union",
-      "too good to be true", "urgent hiring", "easy money"
-    ];
+      if (error) {
+        throw error;
+      }
 
-    const suspiciousIndicators = [
-      "immediate start", "high salary", "no interview", "personal info",
-      "click this link", "urgent", "limited time"
-    ];
+      if (data.error) {
+        toast({
+          title: "Analysis Error",
+          description: data.error,
+          variant: "destructive",
+        });
+        return;
+      }
 
-    const scamCount = scamIndicators.filter(indicator => lowerText.includes(indicator)).length;
-    const suspiciousCount = suspiciousIndicators.filter(indicator => lowerText.includes(indicator)).length;
-
-    let analysisResult: AnalysisResult;
-
-    if (scamCount >= 2) {
-      analysisResult = {
-        type: "scam",
-        confidence: Math.min(85 + scamCount * 3, 98),
-        tips: [
-          "Never pay upfront fees for job applications",
-          "Verify the company through official channels",
-          "Report this job posting to authorities",
-        ],
-        redFlags: scamIndicators.filter(indicator => lowerText.includes(indicator)),
+      const analysisResult: AnalysisResult = {
+        type: data.result,
+        confidence: data.confidence,
+        tips: data.tips || [],
+        redFlags: data.redFlags || [],
       };
-    } else if (scamCount === 1 || suspiciousCount >= 2) {
-      analysisResult = {
-        type: "suspicious",
-        confidence: 60 + suspiciousCount * 8,
-        tips: [
-          "Research the company thoroughly before applying",
-          "Be cautious of unrealistic promises",
-          "Verify contact information independently",
-        ],
-        redFlags: [...scamIndicators, ...suspiciousIndicators].filter(indicator => lowerText.includes(indicator)),
-      };
-    } else {
-      analysisResult = {
-        type: "safe",
-        confidence: 75 + Math.random() * 15,
-        tips: [
-          "Always verify company details before sharing personal information",
-          "Research the company on LinkedIn and Glassdoor",
-          "Trust your instincts if something feels off",
-        ],
-      };
+
+      setResult(analysisResult);
+      onAnalysisComplete?.();
+    } catch (error) {
+      console.error("Analysis error:", error);
+      toast({
+        title: "Analysis Failed",
+        description: "Failed to analyze the job posting. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAnalyzing(false);
     }
-
-    setResult(analysisResult);
-    setIsAnalyzing(false);
   };
 
   const clearResult = () => {

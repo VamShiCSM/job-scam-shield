@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Shield, Menu, X, User, LogIn } from "lucide-react";
+import { Shield, Menu, X, User, LogIn, LayoutDashboard, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const navLinks = [
     { name: "Home", href: "/" },
@@ -13,6 +16,11 @@ const Navbar = () => {
     { name: "Awareness", href: "#awareness" },
     { name: "How It Works", href: "#how-it-works" },
   ];
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   return (
     <motion.nav
@@ -47,14 +55,29 @@ const Navbar = () => {
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" size="sm" className="gap-2">
-              <LogIn className="w-4 h-4" />
-              Login
-            </Button>
-            <Button size="sm" className="gap-2">
-              <User className="w-4 h-4" />
-              Sign Up
-            </Button>
+            {user ? (
+              <>
+                <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")} className="gap-2">
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="gap-2">
+                  <LogIn className="w-4 h-4" />
+                  Login
+                </Button>
+                <Button size="sm" onClick={() => navigate("/auth")} className="gap-2">
+                  <User className="w-4 h-4" />
+                  Sign Up
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -88,14 +111,29 @@ const Navbar = () => {
                 </a>
               ))}
               <div className="flex gap-3 pt-4 border-t border-border">
-                <Button variant="ghost" size="sm" className="flex-1 gap-2">
-                  <LogIn className="w-4 h-4" />
-                  Login
-                </Button>
-                <Button size="sm" className="flex-1 gap-2">
-                  <User className="w-4 h-4" />
-                  Sign Up
-                </Button>
+                {user ? (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")} className="flex-1 gap-2">
+                      <LayoutDashboard className="w-4 h-4" />
+                      Dashboard
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={handleSignOut} className="flex-1 gap-2">
+                      <LogOut className="w-4 h-4" />
+                      Logout
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="flex-1 gap-2">
+                      <LogIn className="w-4 h-4" />
+                      Login
+                    </Button>
+                    <Button size="sm" onClick={() => navigate("/auth")} className="flex-1 gap-2">
+                      <User className="w-4 h-4" />
+                      Sign Up
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>
